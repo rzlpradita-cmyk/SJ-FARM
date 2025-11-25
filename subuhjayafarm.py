@@ -5,8 +5,8 @@ import streamlit as st
 from PIL import Image
 import base64
 import pandas as pd
-import hashlib
-from io import BytesIO
+import hashlib 
+from io import BytesIO 
 
 # ======================================================================
 # 1. KONFIGURASI APLIKASI DAN AKUN MASTER
@@ -77,7 +77,7 @@ def add_download_button(df, filename, label="⬇️ Unduh Data (.xlsx)", key_suf
                     pass
             
             if col in ['Keterangan', 'Deskripsi']:
-                 df_clean[col] = df_clean[col].astype(str).str.replace('**', '', regex=False).str.replace('    ', '', regex=False).str.strip()
+                 df_clean[col] = df_clean[col].astype(str).str.replace('**', '', regex=False).str.replace('    ', '', regex=False).str.strip()
 
     if 'Waktu' in df_clean.columns:
         try:
@@ -510,7 +510,7 @@ def get_formatted_journal_data(sheet_names):
 
         # Entri Kredit 1
         if transaction["K1_Nominal"] > 0 and transaction["K1_Akun"]:
-            keterangan = f"    {transaction['K1_Akun']}"
+            keterangan = f"    {transaction['K1_Akun']}"
             formatted_journal.append({
                 "Waktu": "",
                 "Keterangan": keterangan,  
@@ -524,7 +524,7 @@ def get_formatted_journal_data(sheet_names):
         if transaction["K2_Nominal"] > 0 and transaction["K2_Akun"]:
             formatted_journal.append({
                 "Waktu": "",
-                "Keterangan": f"    {transaction['K2_Akun']}",  
+                "Keterangan": f"    {transaction['K2_Akun']}",  
                 "Debit": 0.0,
                 "Kredit": transaction["K2_Nominal"],
                 "Sort_Key": sort_key,
@@ -630,7 +630,7 @@ def get_ledger_data_for_display(akun_name, all_transactions):
         else:
             return (1, waktu) # Prioritas 1, diurutkan berdasarkan waktu (YYYY-MM-DD)
 
-    ledger_entries.sort(key=get_sort_key)  
+    ledger_entries.sort(key=get_sort_key) 
     
     return ledger_entries
 
@@ -749,22 +749,10 @@ def generate_neraca_saldo_page():
 def get_base64_of_file(path):
     """Membaca file dan mengembalikan base64 string-nya."""
     try:
-        # Gunakan Image dari PIL untuk membuka dan memformat, lalu konversi ke base64
-        img = Image.open(path)
-        buff = BytesIO()
-        # Sesuaikan format berdasarkan ekstensi (asumsi PNG atau JPEG/JPG)
-        format_file = "PNG" if path.lower().endswith(".png") else "JPEG"
-        img.save(buff, format=format_file)
-        return base64.b64encode(buff.getvalue()).decode()
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
     except FileNotFoundError:
         return None
-    except Exception:
-        # Fallback jika PIL gagal atau format tidak dikenal
-        try:
-             with open(path, "rb") as f:
-                 return base64.b64encode(f.read()).decode()
-        except Exception:
-             return None
 
 def generate_laba_rugi_page():
     """Menghasilkan Laporan Laba Rugi Komprehensif."""
@@ -790,7 +778,7 @@ def generate_laba_rugi_page():
     for akun in AKUN_PENDAPATAN:
         saldo = calculate_account_balance(akun)
         if saldo > 0:
-            lr_data.append({"Keterangan": f"    {akun}", "Nominal": saldo})
+            lr_data.append({"Keterangan": f"    {akun}", "Nominal": saldo})
             total_pendapatan_pos += saldo
     
     # HPP
@@ -811,7 +799,7 @@ def generate_laba_rugi_page():
     for akun in beban_ops_list:
         saldo = calculate_account_balance(akun)
         if saldo > 0:
-            lr_data.append({"Keterangan": f"    {akun}", "Nominal": -saldo})
+            lr_data.append({"Keterangan": f"    {akun}", "Nominal": -saldo})
             total_beban_ops += saldo
     
     if total_beban_ops > 0:
@@ -881,7 +869,7 @@ def generate_balance_sheet(title):
     for akun in current_assets:
         saldo = calculate_account_balance(akun)
         if saldo > 0:
-            data.append({"Keterangan": f"    {akun}", "Nominal": saldo, "Kategori": "A"})
+            data.append({"Keterangan": f"    {akun}", "Nominal": saldo, "Kategori": "A"})
             total_lancar += saldo
     data.append({"Keterangan": "Total Aset Lancar", "Nominal": total_lancar, "Total_Type": "Subtotal", "Kategori": "A"})
     
@@ -892,12 +880,12 @@ def generate_balance_sheet(title):
     for akun in ["Bangunan kandang", "Kendaraan"]:
         saldo = calculate_account_balance(akun)
         if saldo > 0:
-            data.append({"Keterangan": f"    {akun} (Bruto)", "Nominal": saldo, "Kategori": "A"})
+            data.append({"Keterangan": f"    {akun} (Bruto)", "Nominal": saldo, "Kategori": "A"})
             total_tetap_bruto += saldo
             
     akumulasi_penyusutan = calculate_account_balance("Akumulasi penyusutan")
     if akumulasi_penyusutan > 0:
-        data.append({"Keterangan": f"    (Akumulasi Penyusutan)", "Nominal": -akumulasi_penyusutan, "Kategori": "A"})
+        data.append({"Keterangan": f"    (Akumulasi Penyusutan)", "Nominal": -akumulasi_penyusutan, "Kategori": "A"})
         total_tetap_bersih = total_tetap_bruto - akumulasi_penyusutan
     else:
         total_tetap_bersih = total_tetap_bruto
@@ -917,7 +905,7 @@ def generate_balance_sheet(title):
     for akun in AKUN_KEWAJIBAN:
         saldo = calculate_account_balance(akun)
         if saldo > 0:
-            data.append({"Keterangan": f"    {akun}", "Nominal": saldo, "Kategori": "L+E"})
+            data.append({"Keterangan": f"    {akun}", "Nominal": saldo, "Kategori": "L+E"})
             total_kewajiban += saldo
     data.append({"Keterangan": "Total Liabilitas", "Nominal": total_kewajiban, "Total_Type": "Subtotal", "Kategori": "L+E"})
     
@@ -928,20 +916,20 @@ def generate_balance_sheet(title):
     saldo_awal_ekuitas_penyeimbang = calculate_account_balance("Modal") - modal_non_sa 
 
     if abs(saldo_awal_ekuitas_penyeimbang) > 0:
-        data.append({"Keterangan": f"    Modal Awal", "Nominal": saldo_awal_ekuitas_penyeimbang, "Kategori": "L+E"})
+        data.append({"Keterangan": f"    Modal Awal", "Nominal": saldo_awal_ekuitas_penyeimbang, "Kategori": "L+E"})
         total_ekuitas_bersih += saldo_awal_ekuitas_penyeimbang
     
     if modal_non_sa > 0:
-        data.append({"Keterangan": f"    Modal Disetor (Mutasi Lain)", "Nominal": modal_non_sa, "Kategori": "L+E"})
+        data.append({"Keterangan": f"    Modal Disetor (Mutasi Lain)", "Nominal": modal_non_sa, "Kategori": "L+E"})
         total_ekuitas_bersih += modal_non_sa
         
     prive = calculate_account_balance("Prive")
     if prive > 0:
-        data.append({"Keterangan": f"    (Prive)", "Nominal": -prive, "Kategori": "L+E"})
+        data.append({"Keterangan": f"    (Prive)", "Nominal": -prive, "Kategori": "L+E"})
         total_ekuitas_bersih -= prive
         
     if laba_rugi != 0:
-        data.append({"Keterangan": f"    Laba (Rugi) Periode Berjalan", "Nominal": laba_rugi, "Kategori": "L+E"})
+        data.append({"Keterangan": f"    Laba (Rugi) Periode Berjalan", "Nominal": laba_rugi, "Kategori": "L+E"})
         total_ekuitas_bersih += laba_rugi
         
     data.append({"Keterangan": "Total Ekuitas", "Nominal": total_ekuitas_bersih, "Total_Type": "Subtotal", "Kategori": "L+E"})
@@ -1585,15 +1573,11 @@ def get_auth_page_styles(bg_base64, fallback_bg_color, input_bg_color, dark_head
     return f"""
         <style>
         {bg_css}
-        /* Responsif untuk Login/Register */
         section.main {{ display: flex; justify-content: center; align-items: center; min-height: 100vh; }}
         .block-container {{
-            max-width: 350px !important; /* Diperkecil dari 400px menjadi 350px */
-            margin: 20px auto !important;
-            width: 90%; 
+            max-width: 400px !important; margin-top: 150px !important;
             background-color: rgba(255, 255, 255, 0.9); border-radius: 15px;
-            padding: 25px; /* Padding dikurangi */
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            padding: 30px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
         }}
         .login-logo {{ width: 100px; margin: 0 auto 10px auto; display: block; border: 3px solid {dark_header}; border-radius: 50%; }}
         .login-title, .login-subtitle {{ color: {text_color} !important; font-weight: 700; text-align: center; }}
@@ -1702,84 +1686,61 @@ def dashboard_page():
     
     kambing5_base64 = get_base64_of_file("kambing5.jpg")
     
-    # Gaya CSS untuk Dashboard (RESPONSIVITAS)
+    if not kambing5_base64:
+        st.warning("Aset gambar 'kambing5.jpg' tidak ditemukan. Menggunakan warna latar belakang solid.")
+
+    # Gaya CSS untuk Dashboard
     st.markdown(
-        """
+        f"""
         <style>
-        .stApp { background-color: #FDF6E3; }
+        .stApp {{ background-color: {BG_PAGE}; }}
         .stSelectbox label, .stTextInput label, .stNumberInput label, 
-        .stMetric label, h1, h2, h3, h4, h5, h6 {
-            color: #3E2F24 !important; font-weight: 600;
-        }
+        .stMetric label, h1, h2, h3, h4, h5, h6 {{
+            color: {TEXT_COLOR} !important; font-weight: 600;
+        }}
         [data-testid="stTextInput"] > div > div > input, 
         [data-testid="stNumberInput"] > div > div > input,
-        .stSelectbox > div > button {
-            color: #3E2F24 !important; background-color: #F8F5F2;
-        }
-        .main-banner { 
-            background-image: url("data:image/png;base64,""" + (kambing5_base64 or '') + """); 
+        .stSelectbox > div > button {{
+            color: {TEXT_COLOR} !important; background-color: #F8F5F2;
+        }}
+        .main-banner {{ 
+            background-image: url("data:image/png;base64,{kambing5_base64 or ''}"); 
             background-size: cover; background-position: center 25%; border-radius: 15px;
             height: 250px; position: relative; overflow: hidden; margin-bottom: 20px;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-        }
-        .banner-overlay { 
-            background: linear-gradient(to bottom, rgba(62, 47, 36, 0.8) 0%, rgba(62, 47, 36, 0.2) 100%);
+        }}
+        .banner-overlay {{ 
+            background: linear-gradient(to bottom, rgba(62, 47, 36, 0.7) 0%, rgba(62, 47, 36, 0.1) 100%);
             padding: 20px 0; color: white; position: absolute; top: 0; left: 0; right: 0; text-align: center;
             font-weight: 700;
-        }
-        .banner-overlay h1 { font-size: 2.5rem; letter-spacing: 2px; text-shadow: 2px 2px 5px rgba(0,0,0,0.9); }
-        .metric-card {
+        }}
+        .banner-overlay h1 {{ font-size: 2.5rem; letter-spacing: 2px; text-shadow: 2px 2px 5px rgba(0,0,0,0.7); }}
+        .metric-card {{
             background-color: #FFFFFF; border-radius: 12px; padding: 20px; margin: 5px 0; 
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); height: 100%;
-            border-left: 5px solid #6B8E23;
+            border-left: 5px solid {ACCENT_GOLD};
             width: 100%; box-sizing: border-box; 
-        }
-        .metric-card p { font-size: 1.5rem; font-weight: 700; color: #3A4F35; margin-bottom: 5px; }
-        .metric-card small { color: #6c757d; }
+        }}
+        .metric-card p {{ font-size: 1.5rem; font-weight: 700; color: {DARK_HEADER}; margin-bottom: 5px; }}
+        .metric-card small {{ color: #6c757d; }}
         
-        div.stButton button {
-            background-color: #D9EAD3; color: #3E2F24;
+        div.stButton button {{
+            background-color: #D9EAD3; color: {TEXT_COLOR};
             border: 1px solid #C5D8BF; border-radius: 10px;
             height: 90px; font-weight: 600;
             box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
             transition: all 0.2s ease-out; margin: 5px 0;
             white-space: normal; line-height: 1.2; text-align: center;
-        }
-        div.stButton > button:hover {
+        }}
+        div.stButton > button:hover {{
             background-color: #C5D8BF;
             transform: translateY(-2px); 
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        /* --- MEDIA QUERY UNTUK RESPONSIVITAS MOBILE --- */
-        @media (max-width: 768px) {
-            /* Memaksa elemen kolom menumpuk vertikal di layar kecil */
-            [data-testid*="stHorizontalBlock"] > div[style*="flex-direction: row"] {
-                flex-direction: column !important;
-            }
-            
-            /* Memastikan kartu metrik mengambil lebar penuh */
-            .metric-card {
-                width: 100% !important;
-                margin-bottom: 15px !important; 
-            }
-            
-            /* Menyesuaikan jarak tombol */
-            div.stButton button {
-                width: 100% !important;
-                margin-bottom: 10px !important;
-            }
-
-            /* Mengatasi potensi tumpang tindih kolom header */
-            [data-testid="stVerticalBlock"] > div > [data-testid="stHorizontalBlock"] {
-                margin-bottom: 10px;
-            }
-        }
-        
-        header { visibility: hidden; }
-        footer { visibility: hidden; }
+        }}
+        header {{ visibility: hidden; }}
+        footer {{ visibility: hidden; }}
         </style>
-        """
+        """, unsafe_allow_html=True
     )
 
     # Header Banner
@@ -1787,8 +1748,8 @@ def dashboard_page():
     st.markdown('<div class="banner-overlay"><h1>SUBUH JAYA FARM</h1><p>Digital Accounting System</p></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Info User dan Logout 
-    col_user, col_logout = st.columns([0.7, 0.3]) 
+    # Info User dan Logout
+    col_user, col_logout = st.columns([1, 0.15]) 
     with col_user:
         st.markdown(f"**Halo, {st.session_state.get('username', 'Pengguna')}!** Ini Ringkasan Bisnis Anda:")
 
@@ -2192,13 +2153,10 @@ def dashboard_page():
 
         # --- Penjualan Ternak ---
         elif selected_category == "Penjualan":
+            st.markdown("### 💰 Input Transaksi Penjualan Ternak")
 
             def update_kategori_state():
                 st.session_state['jual_kategori_akun'] = st.session_state['temp_jual_kat']
-
-            # Pastikan state ada sebelum menggunakan
-            if 'jual_kategori_akun' not in st.session_state:
-                 st.session_state['jual_kategori_akun'] = INVENTORY_ACCOUNT_CHOICES[0]
 
             kategori_akun_selected = st.selectbox(
                 "Kategori Ternak",  
@@ -2244,15 +2202,15 @@ def dashboard_page():
                 submitted = st.form_submit_button("SIMPAN TRANSAKSI PENJUALan")
 
                 if submitted:
-                    if total_penjualan_bruto <= 0 or jumlah <= 0:  
+                    if total_penjualan_bruto <= 0 or jumlah <= 0: 
                         st.error("Harga Satuan Jual dan Jumlah Ekor harus lebih besar dari 0.")
                         return
                     
-                    if metode == "Kredit" and not customer:  
+                    if metode == "Kredit" and not customer: 
                         st.error("Penjualan Kredit WAJIB mengisi Customer.")
                         return
                         
-                    if saldo_ekor_last < jumlah:  
+                    if saldo_ekor_last < jumlah: 
                         st.error(f"Ekor Penjualan ({jumlah:,.0f}) melebihi Saldo Ekor ({saldo_ekor_last:,.0f}). Transaksi Dibatalkan.")
                         return
                     
@@ -2354,9 +2312,9 @@ def main():
     # Routing Halaman
     if not st.session_state['logged_in']:
         if st.session_state['page'] == 'register':
-            register_page()  
+            register_page() 
         else:
-            login_page()  
+            login_page() 
     else:
         if st.session_state['page'] == 'dashboard':
             dashboard_page()
@@ -2386,10 +2344,10 @@ def main():
         elif st.session_state['page'] == 'neraca' or st.session_state['page'] == 'posisi_keuangan':
             generate_balance_sheet("📊 Laporan Posisi Keuangan")
         elif st.session_state['page'] == 'saldo_awal':
-            st.session_state['show_form'] = True
-            st.session_state['selected_transaction_category'] = "Saldo_Awal"
-            st.session_state['page'] = 'dashboard'
-            st.rerun()
+             st.session_state['show_form'] = True
+             st.session_state['selected_transaction_category'] = "Saldo_Awal"
+             st.session_state['page'] = 'dashboard'
+             st.rerun()
 
 
 if __name__ == "__main__":
