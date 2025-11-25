@@ -1688,7 +1688,7 @@ def render_metric_card(col, title, value, unit="", is_money=True):
     
     with col:
         st.markdown(
-            """
+            f"""
             <div class="metric-card">
                 <small>{title}</small>
                 <p>{value_str}</p>
@@ -1704,52 +1704,52 @@ def dashboard_page():
     
     # Gaya CSS untuk Dashboard (RESPONSIVITAS)
     st.markdown(
-        f"""
+        """
         <style>
-        .stApp {{ background-color: {BG_PAGE}; }}
+        .stApp { background-color: #FDF6E3; }
         .stSelectbox label, .stTextInput label, .stNumberInput label, 
-        .stMetric label, h1, h2, h3, h4, h5, h6 {{
-            color: {TEXT_COLOR} !important; font-weight: 600;
-        }}
+        .stMetric label, h1, h2, h3, h4, h5, h6 {
+            color: #3E2F24 !important; font-weight: 600;
+        }
         [data-testid="stTextInput"] > div > div > input, 
         [data-testid="stNumberInput"] > div > div > input,
-        .stSelectbox > div > button {{
-            color: {TEXT_COLOR} !important; background-color: #F8F5F2;
-        }}
-        .main-banner {{ 
-            background-image: url("data:image/png;base64,{kambing5_base64 or ''}"); 
+        .stSelectbox > div > button {
+            color: #3E2F24 !important; background-color: #F8F5F2;
+        }
+        .main-banner { 
+            background-image: url("data:image/png;base64,""" + (kambing5_base64 or '') + """); 
             background-size: cover; background-position: center 25%; border-radius: 15px;
             height: 250px; position: relative; overflow: hidden; margin-bottom: 20px;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-        }}
-        .banner-overlay {{ 
+        }
+        .banner-overlay { 
             background: linear-gradient(to bottom, rgba(62, 47, 36, 0.8) 0%, rgba(62, 47, 36, 0.2) 100%);
             padding: 20px 0; color: white; position: absolute; top: 0; left: 0; right: 0; text-align: center;
             font-weight: 700;
-        }}
-        .banner-overlay h1 {{ font-size: 2.5rem; letter-spacing: 2px; text-shadow: 2px 2px 5px rgba(0,0,0,0.9); }}
-        .metric-card {{
+        }
+        .banner-overlay h1 { font-size: 2.5rem; letter-spacing: 2px; text-shadow: 2px 2px 5px rgba(0,0,0,0.9); }
+        .metric-card {
             background-color: #FFFFFF; border-radius: 12px; padding: 20px; margin: 5px 0; 
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); height: 100%;
-            border-left: 5px solid {ACCENT_GOLD};
+            border-left: 5px solid #6B8E23;
             width: 100%; box-sizing: border-box; 
-        }}
-        .metric-card p {{ font-size: 1.5rem; font-weight: 700; color: {DARK_HEADER}; margin-bottom: 5px; }}
-        .metric-card small {{ color: #6c757d; }}
+        }
+        .metric-card p { font-size: 1.5rem; font-weight: 700; color: #3A4F35; margin-bottom: 5px; }
+        .metric-card small { color: #6c757d; }
         
-        div.stButton button {{
-            background-color: #D9EAD3; color: {TEXT_COLOR};
+        div.stButton button {
+            background-color: #D9EAD3; color: #3E2F24;
             border: 1px solid #C5D8BF; border-radius: 10px;
             height: 90px; font-weight: 600;
             box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
             transition: all 0.2s ease-out; margin: 5px 0;
             white-space: normal; line-height: 1.2; text-align: center;
-        }}
-        div.stButton > button:hover {{
+        }
+        div.stButton > button:hover {
             background-color: #C5D8BF;
             transform: translateY(-2px); 
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }}
+        }
 
         /* --- MEDIA QUERY UNTUK RESPONSIVITAS MOBILE --- */
         @media (max-width: 768px) {
@@ -1776,10 +1776,10 @@ def dashboard_page():
             }
         }
         
-        header {{ visibility: hidden; }}
-        footer {{ visibility: hidden; }}
+        header { visibility: hidden; }
+        footer { visibility: hidden; }
         </style>
-        """, unsafe_allow_html=True
+        """
     )
 
     # Header Banner
@@ -2396,4 +2396,3 @@ if __name__ == "__main__":
     st.set_page_config(layout="wide", page_title="SJF Digital Accounting")
     setup_master_database()
     main()
-
