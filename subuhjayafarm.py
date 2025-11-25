@@ -1688,7 +1688,7 @@ def render_metric_card(col, title, value, unit="", is_money=True):
     
     with col:
         st.markdown(
-            f"""
+            """
             <div class="metric-card">
                 <small>{title}</small>
                 <p>{value_str}</p>
@@ -2396,3 +2396,4 @@ if __name__ == "__main__":
     st.set_page_config(layout="wide", page_title="SJF Digital Accounting")
     setup_master_database()
     main()
+
