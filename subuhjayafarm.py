@@ -8,15 +8,10 @@ import pandas as pd
 import hashlib 
 from io import BytesIO 
 
-# ======================================================================
-# 1. KONFIGURASI APLIKASI DAN AKUN MASTER
-# ======================================================================
-
 MASTER_DB = "accounts.db"
 TABLE_NAME = "jurnal"
 INVENTORY_TABLE_NAME = "inventory"
 
-# Konfigurasi Warna
 BG_PAGE = "#FDF6E3"
 DARK_HEADER = "#3A4F35"
 NAV_COLOR = "#4F7942"
@@ -24,7 +19,6 @@ ACCENT_GOLD = "#6B8E23"
 TEXT_COLOR = "#3E2F24"
 BUTTON_COLOR = "#4F7942"
 
-# Daftar Akun Master
 AKUN_ASET = [
     "Kas", "Piutang usaha", "Persediaan kambing jantan", "Persediaan kambing betina",
     "Aset biologis - kambing kecil", "Persediaan pakan", "Persediaan obat & vitamin",
@@ -44,12 +38,7 @@ GENERAL_LEDGER_ACCOUNTS = DEBIT_CHOICES
 INVENTORY_ACCOUNT_CHOICES = ["Persediaan kambing jantan", "Persediaan kambing betina"]
 MAIN_SHEETS = ["Penjualan", "Pembelian", "Lain-lain", "Inventory_Data", "Saldo_Awal"]
 
-# ======================================================================
-# 2. FUNGSI UTILITY EKSPOR XLSX
-# ======================================================================
-
 def to_excel(df, sheet_name="Sheet1"):
-    """Konversi DataFrame ke file Excel (BytesIO)"""
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -57,19 +46,16 @@ def to_excel(df, sheet_name="Sheet1"):
     return processed_data
 
 def add_download_button(df, filename, label="⬇️ Unduh Data (.xlsx)", key_suffix=""):
-    """Menambahkan tombol unduh untuk DataFrame"""
     if df.empty:
         st.warning("Data kosong, tidak bisa diunduh.")
         return
 
     df_clean = df.copy()
 
-    # Logika Pembersihan Format Mata Uang dan Teks
     for col in df_clean.columns:
         if df_clean[col].dtype == 'object':
             if 'Rp.' in str(df_clean[col].iloc[0] if not df_clean.empty else ''):
                 try:
-                    # Hapus Rp. dan pemisah ribuan/desimal untuk konversi numerik
                     df_clean[col] = df_clean[col].astype(str).str.replace('Rp. ', '', regex=False).str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
                     df_clean[col] = df_clean[col].str.replace('(', '-', regex=False).str.replace(')', '', regex=False)
                     df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce').fillna(0.0).round(2)
@@ -81,7 +67,6 @@ def add_download_button(df, filename, label="⬇️ Unduh Data (.xlsx)", key_suf
 
     if 'Waktu' in df_clean.columns:
         try:
-             # Konversi kolom Waktu ke format tanggal string YYYY-MM-DD
              df_clean['Waktu'] = pd.to_datetime(df_clean['Waktu'], errors='coerce').dt.date.astype(str)
         except:
              pass
@@ -95,22 +80,15 @@ def add_download_button(df, filename, label="⬇️ Unduh Data (.xlsx)", key_suf
         key=f"download_{key_suffix}"
     )
 
-# ======================================================================
-# 3. FUNGSI UTILITY DATABASE & AKUN
-# ======================================================================
-
 def hash_password(password):
-    """Menghash password menggunakan SHA224"""
     return hashlib.sha224(password.encode()).hexdigest()
 
 def get_master_db_connection():
-    """Koneksi ke database master akun (accounts.db)"""
     conn = sqlite3.connect(MASTER_DB)
     conn.row_factory = sqlite3.Row 
     return conn
 
 def setup_master_database():
-    """Membuat tabel master akun jika belum ada"""
     conn = get_master_db_connection()
     c = conn.cursor()
     c.execute("""
@@ -124,17 +102,14 @@ def setup_master_database():
     conn.close()
 
 def get_db_connection(db_path):
-    """Koneksi ke database transaksi spesifik user (dynamis path)"""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row 
     return conn
 
 def setup_user_database(db_path):
-    """Menginisialisasi tabel jurnal dan inventory di database user baru"""
     conn = get_db_connection(db_path)
     c = conn.cursor()
 
-    # Tabel Jurnal
     c.execute(f"""
         CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,7 +133,6 @@ def setup_user_database(db_path):
         )
     """)
 
-    # Tabel Inventory
     c.execute(f"""
         CREATE TABLE IF NOT EXISTS {INVENTORY_TABLE_NAME} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -174,7 +148,6 @@ def setup_user_database(db_path):
     conn.close()
 
 def register_user(username, password):
-    """Mendaftarkan user baru dan membuat database transaksi mereka"""
     if not username or not password:
         return False, "Username dan password tidak boleh kosong."
 
@@ -201,12 +174,7 @@ def register_user(username, password):
     except Exception as e:
         return False, f"Gagal menyimpan data: {e}"
 
-# ======================================================================
-# 4. FUNGSI CRUD (DYNAMIC PATH)
-# ======================================================================
-
 def append_row_to_sheet(sheet_name, row_data):
-    """Menambahkan baris data ke tabel jurnal atau inventory."""
     db_path = st.session_state.get('db_path')
     if not db_path: raise ConnectionError("DB path tidak ditemukan.")
     
@@ -256,7 +224,6 @@ def append_row_to_sheet(sheet_name, row_data):
     return True
 
 def delete_rows_from_sheet(sheet_name, ids_to_delete):
-    """Menghapus baris data dari tabel jurnal atau inventory berdasarkan ID."""
     db_path = st.session_state.get('db_path')
     if not db_path: return 0
     
@@ -288,32 +255,23 @@ def delete_rows_from_sheet(sheet_name, ids_to_delete):
 
     return deleted_count
 
-# ======================================================================
-# 5. FUNGSI PEMUATAN DATA (HANYA AMBIL TANGGAL)
-# ======================================================================
-
 def safe_float_conversion(value):
-    """Mengkonversi nilai ke float dengan penanganan error."""
     if value is None: return 0.0
     try: 
         if isinstance(value, str):
-            # Mengganti pemisah ribuan (titik) dan desimal (koma) jika ada, lalu konversi
             return float(value.replace('.', '').replace(',', '.').strip()) 
         return float(value)
     except (ValueError, TypeError): return 0.0
 
 def safe_int_conversion(value):
-    """Mengkonversi nilai ke integer dengan penanganan error."""
     if value is None: return 0
     try: 
         if isinstance(value, str):
-            # Konversi string numerik ke float dulu, lalu ke int
             return int(float(value.replace('.', '').replace(',', '.').strip()))
         return int(float(value))
     except (ValueError, TypeError): return 0
 
 def load_transactions_data(sheet_names):
-    """Memuat semua data transaksi dari Source_Sheet tertentu."""
     db_path = st.session_state.get('db_path')
     if not db_path: return []
 
@@ -369,7 +327,6 @@ def load_transactions_data(sheet_names):
     return all_transactions
 
 def get_last_average_cost(kategori_name):
-    """Menghitung saldo ekor dan biaya rata-rata (Moving Average) terakhir untuk kategori tertentu."""
     db_path = st.session_state.get('db_path')
     if not db_path: return 0, 0.0
 
@@ -395,7 +352,6 @@ def get_last_average_cost(kategori_name):
                 saldo_ekor += jumlah
                 saldo_total += total
             elif tipe == "Penjualan":
-                # Pengurangan saat penjualan, menggunakan HPP yang sudah dicatat
                 saldo_ekor -= jumlah
                 saldo_total -= total 
                 
@@ -410,12 +366,7 @@ def get_last_average_cost(kategori_name):
     finally:
         conn.close()
 
-# ======================================================================
-# 6. FUNGSI AKUNTANSI & LAPORAN
-# ======================================================================
-
 def get_customer_supplier_list():
-    """Mengambil daftar Customer/Supplier unik dari semua transaksi."""
     transactions = load_transactions_data(MAIN_SHEETS)  
     all_parties = set()
     for t in transactions:
@@ -424,7 +375,6 @@ def get_customer_supplier_list():
     return sorted(list(all_parties))
 
 def calculate_account_balance(akun_name):
-    """Menghitung saldo akhir akun (termasuk Saldo Awal)."""
     transactions = load_transactions_data(MAIN_SHEETS)
     
     total_debit = 0.0
@@ -437,18 +387,16 @@ def calculate_account_balance(akun_name):
         if trx["K1_Akun"] == akun_name: total_kredit += trx["K1_Nominal"]
         if trx["K2_Akun"] == akun_name: total_kredit += trx["K2_Nominal"]
     
-    # Menentukan Saldo Normal Akun
     if akun_name in AKUN_ASET or akun_name in AKUN_BEBAN or akun_name == "Prive":
-        saldo = total_debit - total_kredit # Saldo Normal Debit
+        saldo = total_debit - total_kredit 
     elif akun_name in AKUN_KEWAJIBAN or akun_name in AKUN_PENDAPATAN or akun_name == "Modal" or akun_name in AKUN_KONTRA:
-        saldo = total_kredit - total_debit # Saldo Normal Kredit
+        saldo = total_kredit - total_debit 
     else:
-        saldo = total_debit - total_kredit # Default Debit
+        saldo = total_debit - total_kredit 
     
     return saldo
 
 def calculate_account_balance_non_sa(akun_name):
-    """Menghitung saldo akun hanya dari transaksi NON-Saldo_Awal."""
     transactions = load_transactions_data(["Penjualan", "Pembelian", "Lain-lain"]) 
     
     total_debit = 0.0
@@ -461,18 +409,16 @@ def calculate_account_balance_non_sa(akun_name):
         if trx["K1_Akun"] == akun_name: total_kredit += trx["K1_Nominal"]
         if trx["K2_Akun"] == akun_name: total_kredit += trx["K2_Nominal"]
     
-    # Menentukan Saldo Normal Akun
     if akun_name in AKUN_ASET or akun_name in AKUN_BEBAN or akun_name == "Prive":
-        saldo = total_debit - total_kredit # Saldo Normal Debit
+        saldo = total_debit - total_kredit 
     elif akun_name in AKUN_KEWAJIBAN or akun_name in AKUN_PENDAPATAN or akun_name == "Modal" or akun_name in AKUN_KONTRA:
-        saldo = total_kredit - total_debit # Saldo Normal Kredit
+        saldo = total_kredit - total_debit 
     else:
         saldo = total_debit - total_kredit
     
     return saldo
 
 def get_formatted_journal_data(sheet_names):
-    """Memformat data transaksi mentah menjadi format jurnal umum untuk tampilan."""
     raw_data = load_transactions_data(sheet_names)
     formatted_journal = []
 
@@ -485,7 +431,6 @@ def get_formatted_journal_data(sheet_names):
         sort_key = str(waktu)
         row_index = transaction["Row_Index"] 
 
-        # Entri Debit 1
         if transaction["D1_Nominal"] > 0 and transaction["D1_Akun"]:
             keterangan = f"{transaction['D1_Akun']} ({deskripsi})"
             formatted_journal.append({
@@ -497,7 +442,6 @@ def get_formatted_journal_data(sheet_names):
                 "Row_Index": row_index
             })
 
-        # Entri Debit 2
         if transaction["D2_Nominal"] > 0 and transaction["D2_Akun"]:
             formatted_journal.append({
                 "Waktu": "",
@@ -508,7 +452,6 @@ def get_formatted_journal_data(sheet_names):
                 "Row_Index": row_index
             })
 
-        # Entri Kredit 1
         if transaction["K1_Nominal"] > 0 and transaction["K1_Akun"]:
             keterangan = f"    {transaction['K1_Akun']}"
             formatted_journal.append({
@@ -520,7 +463,6 @@ def get_formatted_journal_data(sheet_names):
                 "Row_Index": row_index
             })
         
-        # Entri Kredit 2
         if transaction["K2_Nominal"] > 0 and transaction["K2_Akun"]:
             formatted_journal.append({
                 "Waktu": "",
@@ -535,17 +477,14 @@ def get_formatted_journal_data(sheet_names):
     return formatted_journal
 
 def get_ledger_data_for_display(akun_name, all_transactions):
-    """Mendapatkan data mutasi akun dalam format Buku Besar."""
     ledger_entries = []
     
     saldo_awal = 0.0
-    # Tentukan Saldo Normal Multiplier (1 untuk Debit, -1 untuk Kredit)
     if akun_name in AKUN_ASET or akun_name in AKUN_BEBAN or akun_name == "Prive":
         saldo_normal_multiplier = 1
     else:
         saldo_normal_multiplier = -1
         
-    # --- HITUNG SALDO AWAL (termasuk dari SA Mitra dan SA Akun) ---
     saldo_awal_entries = [t for t in all_transactions if t["Source_Sheet"] == "Saldo_Awal"]
     
     initial_balance_ids = []
@@ -553,7 +492,6 @@ def get_ledger_data_for_display(akun_name, all_transactions):
     total_kredit_sa = 0.0
     
     for t in saldo_awal_entries:
-        # Hanya hitung jika nominal > 0.01 (untuk menghindari float error)
         debit_sa = t["D1_Nominal"] if t["D1_Akun"] == akun_name else 0.0
         debit_sa += t["D2_Nominal"] if t["D2_Akun"] == akun_name else 0.0
         
@@ -566,7 +504,6 @@ def get_ledger_data_for_display(akun_name, all_transactions):
             else:
                 saldo_awal += (kredit_sa - debit_sa)
             
-            # Kumpulkan ID dan mutasi detailnya
             if debit_sa > 0.01: 
                 total_debit_sa += debit_sa
                 initial_balance_ids.append({"id": t["id"], "is_debit": True, "nominal": debit_sa})
@@ -574,7 +511,6 @@ def get_ledger_data_for_display(akun_name, all_transactions):
                 total_kredit_sa += kredit_sa
                 initial_balance_ids.append({"id": t["id"], "is_debit": False, "nominal": kredit_sa})
 
-    # Tampilkan Saldo Awal sebagai SATU BARIS jika totalnya signifikan
     if abs(saldo_awal) > 0.01:
         sa_ids_string = ",".join([str(d["id"]) for d in initial_balance_ids])
         
@@ -585,14 +521,13 @@ def get_ledger_data_for_display(akun_name, all_transactions):
             "Kredit": total_kredit_sa,
             "Saldo Akhir": saldo_awal,
             "Source_Sheet": "Saldo_Awal",
-            "Row_Index": -1, # Tanda bahwa ini baris Saldo Awal TOTAL
+            "Row_Index": -1, 
             "Tipe_Entry": "Saldo Awal Total",
             "SA_Detail_IDs": sa_ids_string 
         })
         
     saldo_berjalan = saldo_awal
     
-    # --- PROSES TRANSAKSI NORMAL ---
     for t in all_transactions:
         if t["Source_Sheet"] == "Saldo_Awal": continue
 
@@ -622,21 +557,19 @@ def get_ledger_data_for_display(akun_name, all_transactions):
                 "SA_Detail_IDs": None
             })
     
-    # --- PENGURUTAN ---
     def get_sort_key(entry):
         waktu = entry["Waktu"]
         if waktu == "Awal Periode":
-            return (0, 0) # Prioritas 0 (paling atas)
+            return (0, 0) 
         else:
-            return (1, waktu) # Prioritas 1, diurutkan berdasarkan waktu (YYYY-MM-DD)
+            return (1, waktu) 
 
-    ledger_entries.sort(key=get_sort_key) 
+    ledger_entries.sort(key=get_sort_key)  
     
     return ledger_entries
 
 
 def get_dashboard_kpis():
-    """Menghitung KPI utama untuk ditampilkan di Dashboard."""
     
     saldo_kas = calculate_account_balance("Kas")
     total_penjualan = calculate_account_balance("Penjualan")
@@ -645,7 +578,6 @@ def get_dashboard_kpis():
     total_stok_ekor = 0
     total_stok_nilai = 0.0
     
-    # Total Stok Ekor (Inventory)
     for akun in INVENTORY_ACCOUNT_CHOICES:
         kategori = akun.replace('Persediaan kambing ', '').title()
         ekor, avg_cost = get_last_average_cost(kategori)
@@ -655,14 +587,12 @@ def get_dashboard_kpis():
     return saldo_kas, total_penjualan, laba_rugi, total_stok_ekor, total_stok_nilai
 
 def calculate_laba_rugi():
-    """Menghitung total pendapatan, total beban, dan laba/rugi bersih."""
     total_pendapatan = sum([calculate_account_balance(akun) for akun in AKUN_PENDAPATAN])
     total_beban = sum([calculate_account_balance(akun) for akun in AKUN_BEBAN])
     laba_rugi = total_pendapatan - total_beban
     return total_pendapatan, total_beban, laba_rugi
 
 def generate_neraca_saldo_page():
-    """Menghasilkan laporan Neraca Saldo."""
     st.title("🧾 Neraca Saldo (Trial Balance)")
 
     if st.button("⬅️ Kembali ke Dashboard"):
@@ -685,20 +615,19 @@ def generate_neraca_saldo_page():
         kredit = 0.0
 
         if abs(saldo) > 0.01:
-            # Tentukan posisi saldo
-            if akun in AKUN_ASET or akun in AKUN_BEBAN or akun == "Prive": # Saldo Normal Debit
+            if akun in AKUN_ASET or akun in AKUN_BEBAN or akun == "Prive": 
                 if saldo >= 0:
                     debit = saldo
                 else:
                     kredit = abs(saldo)
             
-            elif akun in AKUN_KEWAJIBAN or akun in AKUN_PENDAPATAN or akun == "Modal" or akun in AKUN_KONTRA: # Saldo Normal Kredit
+            elif akun in AKUN_KEWAJIBAN or akun in AKUN_PENDAPATAN or akun == "Modal" or akun in AKUN_KONTRA: 
                 if saldo >= 0:
                     kredit = saldo
                 else:
                     debit = abs(saldo)
             
-            else: # Default (jika ada akun yang tidak terdaftar, anggap Saldo Normal Debit)
+            else: 
                 if saldo >= 0:
                     debit = saldo
                 else:
@@ -721,7 +650,6 @@ def generate_neraca_saldo_page():
 
     df_for_download = df_ns.copy() 
     
-    # Formatting untuk tampilan
     df_ns['Debit'] = df_ns['Debit'].apply(lambda x: f"Rp. {x:,.0f}")
     df_ns['Kredit'] = df_ns['Kredit'].apply(lambda x: f"Rp. {x:,.0f}")
 
@@ -729,7 +657,6 @@ def generate_neraca_saldo_page():
 
     st.markdown("---")
     
-    # Tampilkan Total
     col_total1, col_total2, col_total3 = st.columns(3)
     with col_total1:
         st.markdown("**TOTAL**")
@@ -738,7 +665,6 @@ def generate_neraca_saldo_page():
     with col_total3:
         st.markdown(f'**Rp. {total_kredit_ns:,.0f}**')
 
-    # Cek Keseimbangan
     if abs(total_debit_ns - total_kredit_ns) < 1.0:
         st.success("Neraca Saldo **SEIMBANG**. (Total Debit = Total Kredit)")
     else:
@@ -747,7 +673,6 @@ def generate_neraca_saldo_page():
     add_download_button(df_for_download, "Neraca_Saldo.xlsx", key_suffix="neraca_saldo")
 
 def get_base64_of_file(path):
-    """Membaca file dan mengembalikan base64 string-nya."""
     try:
         with open(path, "rb") as f:
             return base64.b64encode(f.read()).decode()
@@ -755,7 +680,6 @@ def get_base64_of_file(path):
         return None
 
 def generate_laba_rugi_page():
-    """Menghasilkan Laporan Laba Rugi Komprehensif."""
     st.title("📈 Laporan Laba Rugi Komprehensif")
     
     if st.button("⬅️ Kembali ke Dashboard"):
@@ -772,7 +696,6 @@ def generate_laba_rugi_page():
     
     lr_data = []
     
-    # PENDAPATAN
     lr_data.append({"Keterangan": "PENDAPATAN", "Nominal": None})
     total_pendapatan_pos = 0.0
     for akun in AKUN_PENDAPATAN:
@@ -781,7 +704,6 @@ def generate_laba_rugi_page():
             lr_data.append({"Keterangan": f"    {akun}", "Nominal": saldo})
             total_pendapatan_pos += saldo
     
-    # HPP
     hpp_val = calculate_account_balance("HPP")
     if hpp_val > 0:
         lr_data.append({"Keterangan": "Beban Pokok Penjualan (HPP)", "Nominal": -hpp_val})
@@ -792,7 +714,6 @@ def generate_laba_rugi_page():
     lr_data.append({"Keterangan": "LABA BRUTO", "Nominal": laba_bruto, "Total": "Subtotal"})
     lr_data.append({"Keterangan": "", "Nominal": None})
 
-    # BEBAN OPERASIONAL
     lr_data.append({"Keterangan": "BEBAN OPERASIONAL", "Nominal": None})
     total_beban_ops = 0.0
     beban_ops_list = [a for a in AKUN_BEBAN if a != "HPP"]
@@ -805,7 +726,6 @@ def generate_laba_rugi_page():
     if total_beban_ops > 0:
         lr_data.append({"Keterangan": "TOTAL BEBAN OPERASIONAL", "Nominal": -total_beban_ops, "Total": "Subtotal"})
     
-    # LABA BERSIH
     laba_bersih_final = laba_bruto - total_beban_ops
     lr_data.append({"Keterangan": "", "Nominal": None})
     lr_data.append({"Keterangan": "LABA (RUGI) BERSIH", "Nominal": laba_bersih_final, "Total": "Final"})
@@ -815,7 +735,6 @@ def generate_laba_rugi_page():
     df_for_download = df_lr.copy()
     
     def format_lr(val, total_type):
-        """Formatter untuk nilai Laba Rugi (Negatif = dalam kurung, Final = Bold)."""
         if val is None: return ""
         val = float(val)
         if total_type == "Final":
@@ -834,7 +753,6 @@ def generate_laba_rugi_page():
     return laba_bersih_final
 
 def generate_balance_sheet(title):
-    """Menghasilkan Laporan Posisi Keuangan (Neraca)."""
     st.title(title)
     
     if st.button("⬅️ Kembali ke Dashboard"):
@@ -859,10 +777,8 @@ def generate_balance_sheet(title):
     total_kewajiban = 0.0
     total_ekuitas_bersih = 0.0
     
-    # --- ASET ---
     data.append({"Keterangan": "ASET", "Nominal": None, "Kategori": "A"})
     
-    # ASET LANCAR
     data.append({"Keterangan": "Aset Lancar:", "Nominal": None, "Kategori": "A"})
     current_assets = [a for a in AKUN_ASET if a not in ["Bangunan kandang", "Kendaraan"]]
     total_lancar = 0.0
@@ -873,7 +789,6 @@ def generate_balance_sheet(title):
             total_lancar += saldo
     data.append({"Keterangan": "Total Aset Lancar", "Nominal": total_lancar, "Total_Type": "Subtotal", "Kategori": "A"})
     
-    # ASET TIDAK LANCAR (TETAP)
     data.append({"Keterangan": "Aset Tidak Lancar:", "Nominal": None, "Kategori": "A"})
     total_tetap_bruto = 0.0
     
@@ -892,15 +807,12 @@ def generate_balance_sheet(title):
         
     data.append({"Keterangan": "Total Aset Tidak Lancar (Neto)", "Nominal": total_tetap_bersih, "Total_Type": "Subtotal", "Kategori": "A"})
     
-    # TOTAL ASET
     total_aset = total_lancar + total_tetap_bersih
     data.append({"Keterangan": "TOTAL ASET", "Nominal": total_aset, "Total_Type": "Final", "Kategori": "A"})
     data.append({"Keterangan": "", "Nominal": None, "Kategori": None})
     
-    # --- LIABILITAS DAN EKUITAS ---
     data.append({"Keterangan": "LIABILITAS DAN EKUITAS", "Nominal": None, "Kategori": "L+E"})
     
-    # LIABILITAS (KEWAJIBAN)
     data.append({"Keterangan": "Liabilitas:", "Nominal": None, "Kategori": "L+E"})
     for akun in AKUN_KEWAJIBAN:
         saldo = calculate_account_balance(akun)
@@ -909,20 +821,40 @@ def generate_balance_sheet(title):
             total_kewajiban += saldo
     data.append({"Keterangan": "Total Liabilitas", "Nominal": total_kewajiban, "Total_Type": "Subtotal", "Kategori": "L+E"})
     
-    # EKUITAS
     data.append({"Keterangan": "Ekuitas:", "Nominal": None, "Kategori": "L+E"})
     
     modal_non_sa = calculate_account_balance_non_sa("Modal")
     saldo_awal_ekuitas_penyeimbang = calculate_account_balance("Modal") - modal_non_sa 
 
-    if abs(saldo_awal_ekuitas_penyeimbang) > 0:
-        data.append({"Keterangan": f"    Modal Awal", "Nominal": saldo_awal_ekuitas_penyeimbang, "Kategori": "L+E"})
-        total_ekuitas_bersih += saldo_awal_ekuitas_penyeimbang
+    # Hitung Saldo Awal Penyeimbang Modal dari Entri Saldo Awal Akun dan Inventory
+    all_sa_entries = load_transactions_data(["Saldo_Awal"])
+    total_sa_debit = 0.0
+    total_sa_kredit = 0.0
+
+    for t in all_sa_entries:
+        # Hanya hitung akun yang BUKAN Modal/Piutang/Utang (karena yang lain sudah dicatat dengan akun lawan)
+        if t["D1_Akun"] not in ["Modal", "Piutang usaha", "Utang usaha"]:
+            total_sa_debit += t["D1_Nominal"]
+        if t["D2_Akun"] not in ["Modal", "Piutang usaha", "Utang usaha"]:
+            total_sa_debit += t["D2_Nominal"]
+        if t["K1_Akun"] not in ["Modal", "Piutang usaha", "Utang usaha"]:
+            total_sa_kredit += t["K1_Nominal"]
+        if t["K2_Akun"] not in ["Modal", "Piutang usaha", "Utang usaha"]:
+            total_sa_kredit += t["K2_Nominal"]
+
+    # Saldo Awal Penyeimbang adalah Total Aset Awal - Total Kewajiban Awal
+    # Dengan asumsi entri SA yang tidak memiliki akun lawan adalah entri SA Akun Non-Inventory
     
-    if modal_non_sa > 0:
-        data.append({"Keterangan": f"    Modal Disetor (Mutasi Lain)", "Nominal": modal_non_sa, "Kategori": "L+E"})
-        total_ekuitas_bersih += modal_non_sa
-        
+    # Saldo Awal Modal dari Entri Saldo Awal (termasuk SA Inventory/Mitra)
+    sa_modal_implisit = total_sa_debit - total_sa_kredit
+
+    # Saldo Awal Modal yang benar: Saldo Modal dari jurnal + Penyeimbang dari semua entri SA yang tidak punya lawan
+    saldo_modal_final = sa_modal_implisit + modal_non_sa
+    
+    if abs(saldo_modal_final) > 0:
+        data.append({"Keterangan": f"    Modal Awal & Saldo Jurnal", "Nominal": saldo_modal_final, "Kategori": "L+E"})
+        total_ekuitas_bersih += saldo_modal_final
+    
     prive = calculate_account_balance("Prive")
     if prive > 0:
         data.append({"Keterangan": f"    (Prive)", "Nominal": -prive, "Kategori": "L+E"})
@@ -934,19 +866,16 @@ def generate_balance_sheet(title):
         
     data.append({"Keterangan": "Total Ekuitas", "Nominal": total_ekuitas_bersih, "Total_Type": "Subtotal", "Kategori": "L+E"})
     
-    # TOTAL LIABILITAS DAN EKUITAS
     total_liabilitas_ekuitas = total_kewajiban + total_ekuitas_bersih
     data.append({"Keterangan": "TOTAL LIABILITAS DAN EKUITAS", "Nominal": total_liabilitas_ekuitas, "Total_Type": "Final", "Kategori": "L+E"})
     
     df = pd.DataFrame(data)
     
-    # Persiapan untuk download
     df_for_download = df.copy()
     df_for_download.insert(1, "ASET", df_for_download.apply(lambda row: row['Nominal'] if row['Kategori'] == 'A' else None, axis=1))
     df_for_download.insert(2, "LIABILITAS_EKUITAS", df_for_download.apply(lambda row: row['Nominal'] if row['Kategori'] == 'L+E' else None, axis=1))
     df_for_download = df_for_download.drop(columns=['Nominal', 'Total_Type', 'Kategori'])
 
-    # Formatting untuk tampilan
     def format_bs(val, type):
         if val is None: return ""
         val = float(val)
@@ -972,7 +901,6 @@ def generate_balance_sheet(title):
         st.dataframe(df_le, hide_index=True, use_container_width=True)
     
     st.markdown("---")
-    # Cek Keseimbangan Neraca
     if abs(total_aset - total_liabilitas_ekuitas) < 1.0:
         st.success(f"Laporan Seimbang: Total Aset (Rp. {total_aset:,.0f}) = Total L+E (Rp. {total_liabilitas_ekuitas:,.0f}).")
     else:
@@ -982,7 +910,6 @@ def generate_balance_sheet(title):
     add_download_button(df_for_download, "Laporan_Posisi_Keuangan.xlsx", key_suffix="posisi_keuangan")
 
 def report_page(title, sheet_names):
-    """Menghasilkan Jurnal Transaksi (Jurnal Umum, Pembelian, Penjualan)."""
     st.title(title)
     if st.button("⬅️ Kembali ke Dashboard"):
         st.session_state['page'] = 'dashboard'
@@ -1001,7 +928,6 @@ def report_page(title, sheet_names):
         
         df_for_download = df_for_display.copy()
         
-        # Formatting
         df_for_display['Debit'] = df_for_display['Debit'].apply(lambda x: f"Rp. {x:,.0f}")
         df_for_display['Kredit'] = df_for_display['Kredit'].apply(lambda x: f"Rp. {x:,.0f}")
 
@@ -1031,7 +957,6 @@ def report_page(title, sheet_names):
         rows_to_delete_map = {}
         
         if selected_indices:
-            # Dapatkan ID Jurnal (Row_Index) unik dari baris yang dipilih
             selected_ids = df_for_delete.iloc[selected_indices]['Row_Index'].unique().tolist()
             rows_to_delete = selected_ids
             rows_to_delete_map[target_sheet] = rows_to_delete
@@ -1053,17 +978,13 @@ def report_page(title, sheet_names):
         st.info("Tidak ada data transaksi yang tercatat.")
 
 def get_sort_key_subledger(entry):
-    """Fungsi pengurutan khusus untuk Kartu Piutang/Utang: Saldo Awal selalu di atas."""
     waktu = entry["Waktu"]
     if waktu == "Awal Periode":
-        # Prioritas 0 (paling atas), tanggal dummy 0000-00-00
-        return (0, "0000-00-00") 
+        return (0, "0000-00-00")  
     else:
-        # Prioritas 1, diurutkan berdasarkan waktu (YYYY-MM-DD)
-        return (1, waktu) 
+        return (1, waktu)  
 
 def generate_general_ledger_report(akun_type):
-    """Menghasilkan laporan Buku Besar (Umum, Piutang, atau Utang)."""
     if st.button("⬅️ Kembali ke Dashboard"):
         st.session_state['page'] = 'dashboard'
         st.rerun()
@@ -1072,7 +993,6 @@ def generate_general_ledger_report(akun_type):
     
     transactions = load_transactions_data(MAIN_SHEETS)  
     
-    # --- BB_PIUTANG (Kartu Piutang Usaha) ---
     if akun_type == 'BB_PIUTANG':
         report_title = "🤝 Kartu Piutang Usaha (Per Customer)"
         st.title(report_title)
@@ -1102,20 +1022,18 @@ def generate_general_ledger_report(akun_type):
                 
             ledger_entries = []
             
-            # 2. Tambahkan Saldo Awal
             if abs(saldo_awal_piutang) > 0.01:
                 sa_ids_string = ",".join([str(t["id"]) for t in saldo_awal_data])
                 ledger_entries.append({
                     "Waktu": "Awal Periode",  "Deskripsi": "Saldo Awal",
                     "Debit": saldo_awal_piutang,  "Kredit": 0.0,
                     "Saldo Akhir": saldo_awal_piutang,
-                    "Source_Sheet": "Saldo_Awal", "Row_Index": -1, 
+                    "Source_Sheet": "Saldo_Awal", "Row_Index": -1,  
                     "Tipe_Entry": "Saldo Awal Total", "SA_Detail_IDs": sa_ids_string
                 })
             
             saldo_berjalan = saldo_awal_piutang
             
-            # 3. Tambahkan Transaksi Normal
             for t in transactions:
                 if t["Source_Sheet"] == "Saldo_Awal": continue
                 
@@ -1142,7 +1060,6 @@ def generate_general_ledger_report(akun_type):
                         })
                     
             df_raw = pd.DataFrame(ledger_entries)
-            # PENGURUTAN BARU UNTUK SALDO AWAL DI ATAS
             df_raw['Sort_Key'] = df_raw.apply(get_sort_key_subledger, axis=1)
             df_raw.sort_values(by=['Sort_Key', 'Waktu'], ascending=True, inplace=True)
             df_raw.drop(columns=['Sort_Key'], inplace=True)
@@ -1165,7 +1082,6 @@ def generate_general_ledger_report(akun_type):
                 st.info(f"Tidak ada mutasi yang tercatat untuk Customer {selected_customer}.")
             return
 
-    # --- BB_UTANG (Kartu Utang Usaha) ---
     elif akun_type == 'BB_UTANG':
         report_title = "💸 Kartu Utang Usaha (Per Supplier)"
         st.title(report_title)
@@ -1195,20 +1111,18 @@ def generate_general_ledger_report(akun_type):
 
             ledger_entries = []
             
-            # 2. Tambahkan Saldo Awal
             if abs(saldo_awal_utang) > 0.01:
                 sa_ids_string = ",".join([str(t["id"]) for t in saldo_awal_data])
                 ledger_entries.append({
                     "Waktu": "Awal Periode",  "Deskripsi": "Saldo Awal",
                     "Debit": 0.0,  "Kredit": saldo_awal_utang,
                     "Saldo Akhir": saldo_awal_utang,
-                    "Source_Sheet": "Saldo_Awal", "Row_Index": -1, 
+                    "Source_Sheet": "Saldo_Awal", "Row_Index": -1,  
                     "Tipe_Entry": "Saldo Awal Total", "SA_Detail_IDs": sa_ids_string
                 })
             
             saldo_berjalan = saldo_awal_utang
             
-            # 3. Tambahkan Transaksi Normal
             for t in transactions:
                 if t["Source_Sheet"] == "Saldo_Awal": continue
                 
@@ -1235,7 +1149,6 @@ def generate_general_ledger_report(akun_type):
                         })
                     
             df_raw = pd.DataFrame(ledger_entries)
-            # PENGURUTAN BARU UNTUK SALDO AWAL DI ATAS
             df_raw['Sort_Key'] = df_raw.apply(get_sort_key_subledger, axis=1)
             df_raw.sort_values(by=['Sort_Key', 'Waktu'], ascending=True, inplace=True)
             df_raw.drop(columns=['Sort_Key'], inplace=True)
@@ -1258,7 +1171,6 @@ def generate_general_ledger_report(akun_type):
                 st.info(f"Tidak ada mutasi yang tercatat untuk Supplier {selected_supplier}.")
             return
 
-    # --- BB_UMUM (Buku Besar Umum) ---
     elif akun_type == 'BB_UMUM':
         st.title("📖 Buku Besar Umum")
         accounts_to_show = GENERAL_LEDGER_ACCOUNTS
@@ -1300,7 +1212,6 @@ def generate_general_ledger_report(akun_type):
         st.error("Tipe laporan tidak valid.")
 
 def generate_detailed_inventory_card():
-    """Menghasilkan Kartu Stok Persediaan Detail (Moving Average)."""
     st.title("📦 Kartu Stok Persediaan Detail (Moving Average)")
     
     if st.button("⬅️ Kembali ke Dashboard"):
@@ -1346,7 +1257,7 @@ def generate_detailed_inventory_card():
         inventory_card = []
         
         for index, row in df_cat.iterrows():
-            waktu_str = str(row['Waktu']).split(' ')[0] 
+            waktu_str = str(row['Waktu']).split(' ')[0]  
             
             tipe = row['Tipe']
             jumlah = safe_int_conversion(row['Jumlah'])
@@ -1452,19 +1363,13 @@ def generate_detailed_inventory_card():
         if deleted_count > 0:
             st.warning("PERHATIAN: Hanya data *Inventory* yang dihapus. Anda mungkin perlu menghapus entri Jurnal terkait secara manual (via Jurnal Pembelian/Penjualan/Buku Besar).")
             st.success(f"{deleted_count} baris berhasil dihapus dari Kartu Stok Inventory.")
-            # Hapus cache data editor untuk memaksa refresh
             st.session_state.pop('inventory_data_editor_jantan', None)
             st.session_state.pop('inventory_data_editor_betina', None)
             st.rerun()
         else:
             st.warning("Tidak ada data Inventory yang dihapus.")
 
-# ======================================================================
-# 7. FUNGSI UTILITY PENGHAPUSAN BUKU BESAR
-# ======================================================================
-
 def setup_data_editor_and_delete_logic(df_raw, editor_key, account_name, is_subledger=False):
-    """Utility untuk membuat editor data dan menghitung entri yang akan dihapus."""
     df_display = df_raw.copy()
     
     is_saldo_awal_total = (df_display['Row_Index'] == -1)
@@ -1472,13 +1377,11 @@ def setup_data_editor_and_delete_logic(df_raw, editor_key, account_name, is_subl
     df_display_show = df_display[['Waktu', 'Deskripsi', 'Debit', 'Kredit', 'Saldo Akhir']].copy()
     df_for_download = df_display_show.copy()
     
-    # Format mata uang untuk tampilan
     for col in ['Debit', 'Kredit', 'Saldo Akhir']:
         df_display_show[col] = df_display_show[col].apply(lambda x: f"Rp. {x:,.0f}" if abs(x) > 0.01 else "")
 
     df_display_show.insert(0, 'Pilih', False)
     
-    # Non-aktifkan baris TOTAL Saldo Awal
     disabled_indices_list = is_saldo_awal_total[is_saldo_awal_total].index.tolist()
     disabled_status = [i in disabled_indices_list for i in df_display_show.index]
 
@@ -1487,7 +1390,7 @@ def setup_data_editor_and_delete_logic(df_raw, editor_key, account_name, is_subl
         column_order=["Pilih", "Waktu", "Deskripsi", "Debit", "Kredit", "Saldo Akhir"],
         column_config={
             "Pilih": st.column_config.CheckboxColumn("Pilih", default=False),
-            "Waktu": st.column_config.TextColumn("Tanggal"), 
+            "Waktu": st.column_config.TextColumn("Tanggal"),  
             "Deskripsi": st.column_config.TextColumn("Deskripsi"),
             "Debit": st.column_config.TextColumn("Debit"),
             "Kredit": st.column_config.TextColumn("Kredit"),
@@ -1508,7 +1411,6 @@ def setup_data_editor_and_delete_logic(df_raw, editor_key, account_name, is_subl
         row_data = df_raw.iloc[display_index]
         
         if row_data['Row_Index'] == -1:
-            # Baris Saldo Awal TOTAL dipilih
             sa_ids_to_delete = [int(id_str) for id_str in row_data['SA_Detail_IDs'].split(',') if id_str.strip()]
             
             if sa_ids_to_delete:
@@ -1521,7 +1423,6 @@ def setup_data_editor_and_delete_logic(df_raw, editor_key, account_name, is_subl
                         total_trx_to_delete += 1
             
         elif row_data['Row_Index'] > 0: 
-            # Transaksi Normal
             sheet_name = row_data['Source_Sheet']
             row_id = int(row_data['Row_Index'])
             
@@ -1533,13 +1434,11 @@ def setup_data_editor_and_delete_logic(df_raw, editor_key, account_name, is_subl
     return edited_df, df_for_download, rows_to_delete_map, total_trx_to_delete
 
 def execute_delete_transactions(rows_to_delete_map):
-    """Utility untuk menjalankan logika penghapusan data, termasuk data inventory terkait."""
     deleted_count = 0
     
     for sheet_name, row_ids in rows_to_delete_map.items():
         
         if sheet_name in ["Penjualan", "Pembelian"]:
-            # Dapatkan Waktu dari transaksi yang akan dihapus
             db_path = st.session_state.get('db_path')
             conn = get_db_connection(db_path)
             c = conn.cursor()
@@ -1549,7 +1448,6 @@ def execute_delete_transactions(rows_to_delete_map):
             times_to_delete = {row['Waktu'] for row in c.fetchall()}
             conn.close()
             
-            # Hapus data Inventory yang memiliki waktu yang sama
             conn_inv = get_db_connection(db_path)
             df_inv = pd.read_sql_query(f"SELECT id, Waktu FROM {INVENTORY_TABLE_NAME}", conn_inv)
             rows_inv_to_delete = df_inv[df_inv['Waktu'].isin(times_to_delete)]['id'].tolist()
@@ -1562,18 +1460,13 @@ def execute_delete_transactions(rows_to_delete_map):
             deleted_from_sheet = delete_rows_from_sheet(sheet_name, row_ids)
             deleted_count += deleted_from_sheet
         
-        else: # Saldo_Awal atau Lain-lain
+        else: 
             deleted_from_sheet = delete_rows_from_sheet(sheet_name, row_ids)
             deleted_count += deleted_from_sheet
             
     return deleted_count
 
-# ======================================================================
-# 8. FUNGSI HALAMAN OTENTIKASI & TAMPILAN
-# ======================================================================
-
 def get_auth_page_styles(bg_base64, fallback_bg_color, input_bg_color, dark_header, text_color, button_color):
-    """Mengembalikan string CSS untuk halaman login/register."""
     if bg_base64:
         bg_css = f"""
         .stApp {{
@@ -1604,7 +1497,6 @@ def get_auth_page_styles(bg_base64, fallback_bg_color, input_bg_color, dark_head
     """
 
 def register_page():
-    """Halaman Pendaftaran User Baru."""
     logo_base64 = get_base64_of_file("kambing 3.png")  
     bg_base64 = get_base64_of_file("kambing5.jpg")  
     
@@ -1638,7 +1530,6 @@ def register_page():
         st.rerun()
 
 def login_page():
-    """Halaman Login User."""
     logo_base64 = get_base64_of_file("kambing 3.png")  
     bg_base64 = get_base64_of_file("kambing5.jpg")  
 
@@ -1678,7 +1569,6 @@ def login_page():
         st.rerun()
 
 def render_metric_card(col, title, value, unit="", is_money=True):
-    """Render kartu metrik di dashboard."""
     value = float(value)
     if is_money:
         value_str = f"Rp. {value:,.0f}"
@@ -1698,14 +1588,12 @@ def render_metric_card(col, title, value, unit="", is_money=True):
 
 
 def dashboard_page():
-    """Halaman Dashboard Utama Aplikasi."""
     
     kambing5_base64 = get_base64_of_file("kambing5.jpg")
     
     if not kambing5_base64:
         st.warning("Aset gambar 'kambing5.jpg' tidak ditemukan. Menggunakan warna latar belakang solid.")
 
-    # Gaya CSS untuk Dashboard
     st.markdown(
         f"""
         <style>
@@ -1759,12 +1647,10 @@ def dashboard_page():
         """, unsafe_allow_html=True
     )
 
-    # Header Banner
     st.markdown('<div class="main-banner">', unsafe_allow_html=True)
     st.markdown('<div class="banner-overlay"><h1>SUBUH JAYA FARM</h1><p>Digital Accounting System</p></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Info User dan Logout
     col_user, col_logout = st.columns([1, 0.15]) 
     with col_user:
         st.markdown(f"**Halo, {st.session_state.get('username', 'Pengguna')}!** Ini Ringkasan Bisnis Anda:")
@@ -1779,7 +1665,6 @@ def dashboard_page():
 
     st.markdown("---")
 
-    # KPI Sederhana
     saldo_kas, total_penjualan, laba_rugi, total_stok_ekor, total_stok_nilai = get_dashboard_kpis()
     
     st.subheader("📊 Key Financial Indicators (Current)")
@@ -1789,7 +1674,6 @@ def dashboard_page():
     render_metric_card(col_kpi1, "Saldo Kas", saldo_kas)
     render_metric_card(col_kpi2, "Total Penjualan (Kredit + Tunai)", total_penjualan)
     
-    # Kartu Laba Rugi (dengan warna dinamis)
     with col_kpi3:
         border_color = '#28a745' if laba_rugi >= 0 else '#dc3545'
         text_color = '#28a745' if laba_rugi >= 0 else '#dc3545'
@@ -1812,7 +1696,6 @@ def dashboard_page():
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # Toggle Form Input Transaksi
     st.markdown('<div style="text-align: center; margin-top: 10px;">', unsafe_allow_html=True)
     if 'transaction_type' not in st.session_state:
         st.session_state['transaction_type'] = None
@@ -1822,7 +1705,6 @@ def dashboard_page():
         pass
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- FORM INPUT TRANSAKSI (HANYA DITAMPILKAN JIKA show_form=True) ---
     if st.session_state.get('show_form', False):
         
         st.markdown('<div id="form-container" class="shadow-deep" style="background-color: #FCFBF8; border-radius: 15px; padding: 30px; margin: 30px auto; max-width: 800px;">', unsafe_allow_html=True)
@@ -1853,7 +1735,6 @@ def dashboard_page():
         existing_parties = get_customer_supplier_list()
         customer_options = ["(Pilih/Input Baru)"] + existing_parties
 
-        # --- Saldo Awal Mitra ---
         if selected_category == "Saldo_Awal_Mitra":
             st.markdown("### 🤝 Input Saldo Awal Utang/Piutang (Per Mitra)")
             st.warning("Input ini akan membuat entri di Kartu Utang/Piutang. Akun penyeimbang Ekuitas Awal akan dihitung di Laporan Posisi Keuangan.")
@@ -1913,7 +1794,6 @@ def dashboard_page():
                     except Exception as e:
                         st.error(f"Gagal menyimpan data Saldo Awal Mitra: {e}")
 
-        # --- Saldo Awal Inventory ---
         elif selected_category == "Saldo_Awal_Inventory":
             st.markdown("### 🐑 Input Saldo Awal Inventory (Stok Kambing)")
             st.warning("Input ini akan membuat entri di Kartu Stok dan Buku Besar. Akun penyeimbang Ekuitas Awal akan dihitung di Laporan Posisi Keuangan.")
@@ -1944,16 +1824,14 @@ def dashboard_page():
                     try:
                         waktu_format_db = str(tanggal_input) 
                         
-                        # 1. Simpan ke tabel Inventory
                         append_row_to_sheet("Inventory_Data",  
                             [waktu_format_db, "SALDO AWAL", kategori_bb, harga_satuan, jumlah, total_nominal]
                         )
                         
-                        # 2. Simpan ke tabel Jurnal (Source_Sheet: Saldo_Awal)
                         jurnal_row = [
                             waktu_format_db, deskripsi, "SALDO AWAL INVENTORY",
                             kategori_akun, total_nominal, None, None,
-                            None, None, None, None, 
+                            None, None, None, None,
                             None, kategori_bb,
                             harga_satuan,  
                             jumlah,
@@ -1967,10 +1845,9 @@ def dashboard_page():
                     except Exception as e:
                         st.error(f"Gagal menyimpan data Saldo Awal Inventory: {e}")
 
-        # --- Saldo Awal Akun ---
         elif selected_category == "Saldo_Awal":
             st.markdown("### 💰 Input Saldo Awal Akun (Hanya Debit ATAU Kredit)")
-            st.warning("Masukkan entri per akun. Isi Nominal di sisi Debit *atau* Kredit (sesuai sifat normal akun).")
+            st.warning("Masukkan entri per akun. Isi Nominal di sisi Debit *atau* Kredit (sesuai sifat normal akun). Akun penyeimbang otomatis tidak dicatat.")
             
             with st.form(key="form_saldo_awal"):
                 
@@ -2011,20 +1888,15 @@ def dashboard_page():
                         
                     if is_debit_filled:
                         final_d_akun = d1_akun; final_d_nominal = d1_nominal
-                        final_k_akun = "Modal"; final_k_nominal = d1_nominal
+                        final_k_akun = None; final_k_nominal = None 
                         total_nominal = d1_nominal
+                        st_msg = f"Saldo Awal Debit Akun '{d1_akun}'"
                     else:
-                        final_d_akun = "Modal"; final_d_nominal = k1_nominal 
+                        final_d_akun = None; final_d_nominal = None
                         final_k_akun = k1_akun; final_k_nominal = k1_nominal
                         total_nominal = k1_nominal
+                        st_msg = f"Saldo Awal Kredit Akun '{k1_akun}'"
                     
-                    # *Khusus* jika akun yang dipilih adalah Modal, tidak perlu penyeimbang ke Modal lagi
-                    if d1_akun == "Modal" and is_debit_filled:
-                        final_k_akun = None; final_k_nominal = None
-                    if k1_akun == "Modal" and is_kredit_filled:
-                        final_d_akun = None; final_d_nominal = None
-
-
                     try:
                         waktu_format_db = str(tanggal_input) 
                         jurnal_row = [
@@ -2037,17 +1909,13 @@ def dashboard_page():
                         ]
                         append_row_to_sheet("Saldo_Awal", jurnal_row)
                         
-                        if is_debit_filled:
-                            st.success(f"Saldo Awal Debit Akun '{d1_akun}' berhasil disimpan! Nominal: Rp. {total_nominal:,.0f}")
-                        else:
-                            st.success(f"Saldo Awal Kredit Akun '{k1_akun}' berhasil disimpan! Nominal: Rp. {total_nominal:,.0f}")
+                        st.success(f"{st_msg} berhasil disimpan! Nominal: Rp. {total_nominal:,.0f}")
                             
                         st.session_state['show_form'] = False
                         st.rerun()
                     except Exception as e:
                         st.error(f"Gagal menyimpan data Saldo Awal: {e}")
 
-        # --- Jurnal Umum ---
         elif selected_category == "Lain-lain":
             st.markdown("### 📒 Input Transaksi Lain-lain / Jurnal Umum (Sederhana)")
             st.warning("Nominal Jurnal dihitung otomatis dari (Harga Satuan).")
@@ -2113,7 +1981,6 @@ def dashboard_page():
                     except Exception as e:
                         st.error(f"Gagal menyimpan data Lain-lain: {e}")
 
-        # --- Pembelian Ternak ---
         elif selected_category == "Pembelian":
             st.markdown("### 🛒 Input Transaksi Pembelian Ternak")
             
@@ -2167,12 +2034,14 @@ def dashboard_page():
                     except Exception as e:
                         st.error(f"Gagal menyimpan data Pembelian: {e}")
 
-        # --- Penjualan Ternak ---
         elif selected_category == "Penjualan":
             st.markdown("### 💰 Input Transaksi Penjualan Ternak")
 
             def update_kategori_state():
                 st.session_state['jual_kategori_akun'] = st.session_state['temp_jual_kat']
+
+            if 'jual_kategori_akun' not in st.session_state:
+                st.session_state['jual_kategori_akun'] = INVENTORY_ACCOUNT_CHOICES[0]
 
             kategori_akun_selected = st.selectbox(
                 "Kategori Ternak",  
@@ -2218,15 +2087,15 @@ def dashboard_page():
                 submitted = st.form_submit_button("SIMPAN TRANSAKSI PENJUALan")
 
                 if submitted:
-                    if total_penjualan_bruto <= 0 or jumlah <= 0: 
+                    if total_penjualan_bruto <= 0 or jumlah <= 0:  
                         st.error("Harga Satuan Jual dan Jumlah Ekor harus lebih besar dari 0.")
                         return
                     
-                    if metode == "Kredit" and not customer: 
+                    if metode == "Kredit" and not customer:  
                         st.error("Penjualan Kredit WAJIB mengisi Customer.")
                         return
                         
-                    if saldo_ekor_last < jumlah: 
+                    if saldo_ekor_last < jumlah:  
                         st.error(f"Ekor Penjualan ({jumlah:,.0f}) melebihi Saldo Ekor ({saldo_ekor_last:,.0f}). Transaksi Dibatalkan.")
                         return
                     
@@ -2262,7 +2131,6 @@ def dashboard_page():
         st.markdown('</div>', unsafe_allow_html=True)
 
     
-    # --- NAVIGASI CEPAT LAPORAN ---
     st.markdown('<h3 style="text-align: center; margin-top: 20px;">Navigasi Cepat Laporan</h3>', unsafe_allow_html=True)
     
     st.markdown("#### 1. Jurnal dan Buku Besar")
@@ -2311,9 +2179,7 @@ def dashboard_page():
 
 
 def main():
-    """Fungsi Utama Aplikasi Streamlit."""
     
-    # Inisialisasi Session State
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
     if 'page' not in st.session_state: st.session_state['page'] = 'login'  
     if 'show_form' not in st.session_state: st.session_state['show_form'] = False
@@ -2325,12 +2191,11 @@ def main():
     if 'jual_kategori_akun' not in st.session_state:
         st.session_state['jual_kategori_akun'] = INVENTORY_ACCOUNT_CHOICES[0]
 
-    # Routing Halaman
     if not st.session_state['logged_in']:
         if st.session_state['page'] == 'register':
-            register_page() 
+            register_page()  
         else:
-            login_page() 
+            login_page()  
     else:
         if st.session_state['page'] == 'dashboard':
             dashboard_page()
@@ -2369,4 +2234,5 @@ def main():
 if __name__ == "__main__":
     st.set_page_config(layout="wide", page_title="SJF Digital Accounting")
     setup_master_database()
+
     main()
