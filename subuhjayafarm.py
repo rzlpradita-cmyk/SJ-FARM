@@ -814,6 +814,7 @@ def generate_balance_sheet(title):
     data.append({"Keterangan": "LIABILITAS DAN EKUITAS", "Nominal": None, "Kategori": "L+E"})
     
     data.append({"Keterangan": "Liabilitas:", "Nominal": None, "Kategori": "L+E"})
+    total_kewajiban_sa_non_modal = 0.0
     for akun in AKUN_KEWAJIBAN:
         saldo = calculate_account_balance(akun)
         if saldo > 0:
@@ -825,33 +826,33 @@ def generate_balance_sheet(title):
     
     modal_non_sa = calculate_account_balance_non_sa("Modal")
 
-    # --- PERBAIKAN LOGIKA: Menghitung Saldo Awal Modal Implisit ---
-    all_sa_entries = load_transactions_data(["Saldo_Awal"])
-    total_sa_debit = 0.0
-    total_sa_kredit = 0.0
+    total_aset_awal = 0.0
+    for akun in AKUN_ASET:
+        transactions = load_transactions_data(["Saldo_Awal"])
+        total_debit_sa = sum(t["D1_Nominal"] for t in transactions if t["D1_Akun"] == akun)
+        total_debit_sa += sum(t["D2_Nominal"] for t in transactions if t["D2_Akun"] == akun)
+        total_kredit_sa = sum(t["K1_Nominal"] for t in transactions if t["K1_Akun"] == akun)
+        total_kredit_sa += sum(t["K2_Nominal"] for t in transactions if t["K2_Akun"] == akun)
+        
+        total_aset_awal += (total_debit_sa - total_kredit_sa)
 
-    for t in all_sa_entries:
-        # Hitung saldo debit dan kredit dari semua akun di entri Saldo Awal
-        # Perhatikan: semua nominal > 0 dicatat, terlepas dari apakah akun lawannya NULL atau tidak.
-        total_sa_debit += t["D1_Nominal"]
-        total_sa_debit += t["D2_Nominal"]
-        total_sa_kredit += t["K1_Nominal"]
-        total_sa_kredit += t["K2_Nominal"]
+    total_liabilitas_awal = 0.0
+    liabilitas_kontra = AKUN_KEWAJIBAN + AKUN_KONTRA
+    for akun in liabilitas_kontra:
+        transactions = load_transactions_data(["Saldo_Awal"])
+        total_debit_sa = sum(t["D1_Nominal"] for t in transactions if t["D1_Akun"] == akun)
+        total_debit_sa += sum(t["D2_Nominal"] for t in transactions if t["D2_Akun"] == akun)
+        total_kredit_sa = sum(t["K1_Nominal"] for t in transactions if t["K1_Akun"] == akun)
+        total_kredit_sa += sum(t["K2_Nominal"] for t in transactions if t["K2_Akun"] == akun)
+        
+        total_liabilitas_awal += (total_kredit_sa - total_debit_sa)
 
-    # Saldo Modal Awal Implisit = Total Kredit Awal (Liabilitas + Ekuitas) - Total Debit Awal (Aset)
-    # ATAU
-    # Total Aset Awal (Debit) - Total Liabilitas Awal (Kredit) - Total Ekuitas Awal (Kredit)
-    
-    # Pendekatan Paling Sederhana: Hitung Modal yang dibutuhkan agar Neraca Saldo SA Seimbang.
-    # Selisih: (Total Debit SA yang diinput) - (Total Kredit SA yang diinput)
-    # Karena Modal adalah akun Kredit, jika Debit > Kredit, Modal Awal harus Kredit (Positif).
-    sa_modal_penyeimbang_bersih = total_sa_kredit - total_sa_debit
+    sa_modal_implisit = total_aset_awal - total_liabilitas_awal
 
-    # Tambahkan Modal dari transaksi harian (non-SA)
-    saldo_modal_final = modal_non_sa - sa_modal_penyeimbang_bersih 
+    saldo_modal_final = sa_modal_implisit + modal_non_sa 
 
     if abs(saldo_modal_final) > 0:
-        data.append({"Keterangan": f"    Modal Awal & Saldo Jurnal", "Nominal": saldo_modal_final, "Kategori": "L+E"})
+        data.append({"Keterangan": f"    Modal Awal & Mutasi Langsung", "Nominal": saldo_modal_final, "Kategori": "L+E"})
         total_ekuitas_bersih += saldo_modal_final
     
     prive = calculate_account_balance("Prive")
