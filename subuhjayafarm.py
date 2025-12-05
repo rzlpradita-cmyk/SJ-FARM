@@ -852,7 +852,7 @@ def generate_balance_sheet(title):
     saldo_modal_final = sa_modal_implisit + modal_non_sa 
 
     if abs(saldo_modal_final) > 0:
-        data.append({"Keterangan": f"    Modal Awal & Mutasi Langsung", "Nominal": saldo_modal_final, "Kategori": "L+E"})
+        data.append({"Keterangan": f"    Modal Awal", "Nominal": saldo_modal_final, "Kategori": "L+E"})
         total_ekuitas_bersih += saldo_modal_final
     
     prive = calculate_account_balance("Prive")
@@ -2236,3 +2236,4 @@ if __name__ == "__main__":
     setup_master_database()
 
     main()
+
